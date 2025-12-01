@@ -1,0 +1,15 @@
+name: neighborhood_quest_app
+description: A simple Flutter app to browse and play neighborhood quests.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+
+flutter:
+  uses-material-design: true
