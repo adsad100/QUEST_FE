@@ -54,6 +54,8 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
   void _moveCameraTo(Checkpoint checkpoint) {
     final target = LatLng(checkpoint.latitude, checkpoint.longitude);
     _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, 16));
+    final markerId = MarkerId('checkpoint_${checkpoint.id}');
+    _mapController?.showMarkerInfoWindow(markerId);
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -103,7 +105,7 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                   onMapCreated: _onMapCreated,
                   initialCameraPosition: CameraPosition(
                     target: initialTarget,
-                    zoom: 14,
+                    zoom: 16,
                   ),
                   markers: _markers,
                   myLocationEnabled: false,

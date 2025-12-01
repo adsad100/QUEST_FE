@@ -3,6 +3,9 @@
         android:label="neighborhood_quest_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="AIzaSyCPs0OeRpUf9UkMZx4zXVQ2G1LvWv7jCr0" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
