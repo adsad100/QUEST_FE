@@ -54,8 +54,9 @@ class _QuestListScreenState extends State<QuestListScreen> {
             return const Center(child: Text('퀘스트가 없습니다.'));
           }
 
-          return ListView.builder(
+          return ListView.separated(
             itemCount: quests.length,
+            separatorBuilder: (context, index) => const Divider(height: 10),
             itemBuilder: (context, index) {
               final quest = quests[index];
               return ListTile(
@@ -78,7 +79,11 @@ class _QuestListScreenState extends State<QuestListScreen> {
                     MaterialPageRoute(
                       builder: (_) => QuestDetailScreen(questId: quest.id),
                     ),
-                  );
+                  ).then((value){
+                    setState((){
+
+                    });
+                  });
                 },
               );
             },
