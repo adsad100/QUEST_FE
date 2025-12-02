@@ -24,6 +24,7 @@ class _QuestPlayScreenState extends State<QuestPlayScreen> {
   void initState() {
     super.initState();
     _visited = List<bool>.filled(widget.questDetail.checkpoints.length, false);
+    _loadVisitedCheckpoints();
   }
 
   Future<void> _toggleVisited(int index, bool? value) async {
@@ -32,6 +33,20 @@ class _QuestPlayScreenState extends State<QuestPlayScreen> {
     });
 
     await _updateStatus();
+  }
+
+  Future<void> _loadVisitedCheckpoints() async {
+    final savedVisited =
+        await _progressRepo.getVisitedCheckpoints(widget.questDetail.id);
+
+    if (!mounted) return;
+
+    setState(() {
+      for (var i = 0; i < widget.questDetail.checkpoints.length; i++) {
+        final checkpointId = widget.questDetail.checkpoints[i].id;
+        _visited[i] = savedVisited.contains(checkpointId);
+      }
+    });
   }
 
   Future<void> _updateStatus() async {
@@ -47,6 +62,17 @@ class _QuestPlayScreenState extends State<QuestPlayScreen> {
       newStatus = QuestStatus.inProgress;
     }
 
+    final visitedCheckpointIds = <int>[];
+    for (var i = 0; i < _visited.length; i++) {
+      if (_visited[i]) {
+        visitedCheckpointIds.add(widget.questDetail.checkpoints[i].id);
+      }
+    }
+
+    await _progressRepo.setVisitedCheckpoints(
+      widget.questDetail.id,
+      visitedCheckpointIds,
+    );
     await _progressRepo.setStatus(widget.questDetail.id, newStatus);
     _statusChanged = true;
   }

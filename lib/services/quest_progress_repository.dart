@@ -4,6 +4,7 @@ import '../models/quest_status.dart';
 
 class QuestProgressRepository {
   static const _prefix = 'quest_status_';
+  static const _checkpointPrefix = 'quest_checkpoints_';
 
   Future<QuestStatus> getStatus(int questId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -26,6 +27,25 @@ class QuestProgressRepository {
   Future<void> setStatus(int questId, QuestStatus status) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('$_prefix$questId', _statusToString(status));
+  }
+
+  Future<Set<int>> getVisitedCheckpoints(int questId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList('$_checkpointPrefix$questId');
+    if (stored == null) return {};
+
+    return stored
+        .map((value) => int.tryParse(value))
+        .whereType<int>()
+        .toSet();
+  }
+
+  Future<void> setVisitedCheckpoints(int questId, List<int> checkpointIds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      '$_checkpointPrefix$questId',
+      checkpointIds.map((id) => id.toString()).toList(),
+    );
   }
 
   QuestStatus _stringToStatus(String? value) {
