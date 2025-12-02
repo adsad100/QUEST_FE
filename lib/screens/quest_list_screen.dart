@@ -15,6 +15,8 @@ class QuestListScreen extends StatefulWidget {
 }
 
 class _QuestListScreenState extends State<QuestListScreen> {
+  static const double _filterChipWidth = 76.0;
+
   late final QuestApiService _apiService;
   late Future<List<QuestSummary>> _futureQuests;
   final QuestProgressRepository _progressRepo = QuestProgressRepository();
@@ -193,36 +195,26 @@ class _QuestListScreenState extends State<QuestListScreen> {
       child: Wrap(
         spacing: 8,
         children: [
-          ChoiceChip(
-            label: const Text('전체'),
-            selected: _selectedFilter == QuestFilter.all,
-            onSelected: (_) {
-              setState(() => _selectedFilter = QuestFilter.all);
-            },
-          ),
-          ChoiceChip(
-            label: const Text('미진행'),
-            selected: _selectedFilter == QuestFilter.notStarted,
-            onSelected: (_) {
-              setState(() => _selectedFilter = QuestFilter.notStarted);
-            },
-          ),
-          ChoiceChip(
-            label: const Text('진행중'),
-            selected: _selectedFilter == QuestFilter.inProgress,
-            onSelected: (_) {
-              setState(() => _selectedFilter = QuestFilter.inProgress);
-            },
-          ),
-          ChoiceChip(
-            label: const Text('완료'),
-            selected: _selectedFilter == QuestFilter.completed,
-            onSelected: (_) {
-              setState(() => _selectedFilter = QuestFilter.completed);
-            },
-          ),
+          _buildFilterChip(QuestFilter.all, '전체'),
+          _buildFilterChip(QuestFilter.notStarted, '미진행'),
+          _buildFilterChip(QuestFilter.inProgress, '진행중'),
+          _buildFilterChip(QuestFilter.completed, '완료'),
         ],
       ),
+    );
+  }
+
+  ChoiceChip _buildFilterChip(QuestFilter filter, String label) {
+    return ChoiceChip(
+      showCheckmark: false,
+      label: SizedBox(
+        width: _filterChipWidth,
+        child: Center(child: Text(label)),
+      ),
+      selected: _selectedFilter == filter,
+      onSelected: (_) {
+        setState(() => _selectedFilter = filter);
+      },
     );
   }
 }
