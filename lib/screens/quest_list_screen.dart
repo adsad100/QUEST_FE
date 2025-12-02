@@ -150,10 +150,13 @@ class _QuestListScreenState extends State<QuestListScreen> {
                                 ),
                               ],
                               const SizedBox(height: 4),
-                              Text(
-                                '$statusText · $progressText',
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: Colors.grey[700]),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '$statusText · $progressText',
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: Colors.grey[700]),
+                                ),
                               ),
                             ],
                           ),
