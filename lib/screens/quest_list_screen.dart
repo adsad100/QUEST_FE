@@ -1,8 +1,10 @@
 // lib/screens/quest_list_screen.dart
 import 'package:flutter/material.dart';
 
+import '../models/quest_status.dart';
 import '../models/quest_summary.dart';
 import '../services/quest_api_service.dart';
+import '../services/quest_progress_repository.dart';
 import 'quest_detail_screen.dart';
 
 class QuestListScreen extends StatefulWidget {
@@ -14,13 +16,29 @@ class QuestListScreen extends StatefulWidget {
 
 class _QuestListScreenState extends State<QuestListScreen> {
   late final QuestApiService _apiService;
-  late Future<List<QuestSummary>> _questsFuture;
+  late Future<List<QuestSummary>> _futureQuests;
+  final QuestProgressRepository _progressRepo = QuestProgressRepository();
+
+  Map<int, QuestStatus> _statusMap = {};
+  QuestFilter _selectedFilter = QuestFilter.all;
 
   @override
   void initState() {
     super.initState();
     _apiService = QuestApiService();
-    _questsFuture = _apiService.fetchQuests();
+    _futureQuests = _loadQuests();
+  }
+
+  Future<List<QuestSummary>> _loadQuests() async {
+    final quests = await _apiService.fetchQuests();
+    final ids = quests.map((q) => q.id).toList();
+    final statuses = await _progressRepo.getStatuses(ids);
+
+    setState(() {
+      _statusMap = statuses;
+    });
+
+    return quests;
   }
 
   @override
@@ -30,7 +48,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
         title: const Text('퀘스트 목록'),
       ),
       body: FutureBuilder<List<QuestSummary>>(
-        future: _questsFuture,
+        future: _futureQuests,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -54,62 +72,87 @@ class _QuestListScreenState extends State<QuestListScreen> {
             return const Center(child: Text('퀘스트가 없습니다.'));
           }
 
-          return ListView.separated(
-            itemCount: quests.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final quest = quests[index];
-              final theme = Theme.of(context);
-              final metaLine = buildMetaLine(quest);
-              final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
+          final filteredQuests = _applyFilter(quests);
 
-              return Card(
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => QuestDetailScreen(questId: quest.id),
-                      ),
-                    ).then((value) {
-                      setState(() {});
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          quest.title,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        if (hasSummary) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            quest.summary!,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+          return Column(
+            children: [
+              _buildFilterChips(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: filteredQuests.length,
+                  itemBuilder: (context, index) {
+                    final quest = filteredQuests[index];
+                    final theme = Theme.of(context);
+                    final metaLine = buildMetaLine(quest);
+                    final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
+                    final status = _statusMap[quest.id] ?? QuestStatus.notStarted;
+
+                    return Card(
+                      color: _cardColorFor(status, context),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => QuestDetailScreen(questId: quest.id),
                             ),
+                          ).then((value) {
+                            setState(() {
+                              _futureQuests = _loadQuests();
+                            });
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                quest.title,
+                                style: theme.textTheme.titleMedium,
+                              ),
+                              if (hasSummary) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  quest.summary!,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                              if (metaLine.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  metaLine,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                        if (metaLine.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            metaLine,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           );
         },
       ),
     );
+  }
+
+  Color _cardColorFor(QuestStatus status, BuildContext context) {
+    switch (status) {
+      case QuestStatus.completed:
+        return const Color(0xFFE8F5E9);
+      case QuestStatus.inProgress:
+        return const Color(0xFFE3F2FD);
+      case QuestStatus.notStarted:
+      default:
+        return Theme.of(context).cardColor;
+    }
   }
 
   String buildMetaLine(QuestSummary quest) {
@@ -125,5 +168,61 @@ class _QuestListScreenState extends State<QuestListScreen> {
     }
 
     return parts.join(' · ');
+  }
+
+  List<QuestSummary> _applyFilter(List<QuestSummary> quests) {
+    return quests.where((q) {
+      final status = _statusMap[q.id] ?? QuestStatus.notStarted;
+
+      switch (_selectedFilter) {
+        case QuestFilter.all:
+          return true;
+        case QuestFilter.notStarted:
+          return status == QuestStatus.notStarted;
+        case QuestFilter.inProgress:
+          return status == QuestStatus.inProgress;
+        case QuestFilter.completed:
+          return status == QuestStatus.completed;
+      }
+    }).toList();
+  }
+
+  Widget _buildFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          ChoiceChip(
+            label: const Text('전체'),
+            selected: _selectedFilter == QuestFilter.all,
+            onSelected: (_) {
+              setState(() => _selectedFilter = QuestFilter.all);
+            },
+          ),
+          ChoiceChip(
+            label: const Text('미진행'),
+            selected: _selectedFilter == QuestFilter.notStarted,
+            onSelected: (_) {
+              setState(() => _selectedFilter = QuestFilter.notStarted);
+            },
+          ),
+          ChoiceChip(
+            label: const Text('진행중'),
+            selected: _selectedFilter == QuestFilter.inProgress,
+            onSelected: (_) {
+              setState(() => _selectedFilter = QuestFilter.inProgress);
+            },
+          ),
+          ChoiceChip(
+            label: const Text('완료'),
+            selected: _selectedFilter == QuestFilter.completed,
+            onSelected: (_) {
+              setState(() => _selectedFilter = QuestFilter.completed);
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
