@@ -98,15 +98,16 @@ class _QuestListScreenState extends State<QuestListScreen> {
                   itemBuilder: (context, index) {
                     final quest = filteredQuests[index];
                     final theme = Theme.of(context);
-                    final metaLine = buildMetaLine(quest);
                     final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
                     final status = _statusMap[quest.id] ?? QuestStatus.notStarted;
                     final completedCount = _completedCountMap[quest.id] ?? 0;
                     final totalCount = quest.checkpointCount ?? 0;
                     final statusText = _statusLabel(status);
-                    final progressText = totalCount > 0
-                        ? '체크포인트 $completedCount / $totalCount'
-                        : '체크포인트 정보 없음';
+                    final metaLine = buildMetaLine(
+                      quest,
+                      completedCount,
+                      totalCount,
+                    );
 
                     return Card(
                       color: _cardColorFor(status, context),
@@ -144,20 +145,23 @@ class _QuestListScreenState extends State<QuestListScreen> {
                               ],
                               if (metaLine.isNotEmpty) ...[
                                 const SizedBox(height: 4),
-                                Text(
-                                  metaLine,
-                                  style: theme.textTheme.bodySmall,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        metaLine,
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ),
+                                    Text(
+                                      statusText,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '$statusText · $progressText',
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: Colors.grey[700]),
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -196,7 +200,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
     }
   }
 
-  String buildMetaLine(QuestSummary quest) {
+  String buildMetaLine(QuestSummary quest, int completedCount, int totalCount) {
     final parts = <String>[];
     if (quest.estimatedDurationMin != null) {
       parts.add('${quest.estimatedDurationMin}분');
@@ -204,8 +208,10 @@ class _QuestListScreenState extends State<QuestListScreen> {
     if (quest.totalDistanceM != null) {
       parts.add('${quest.totalDistanceM}m');
     }
-    if (quest.checkpointCount != null) {
-      parts.add('체크포인트 ${quest.checkpointCount}개');
+    if (totalCount > 0) {
+      parts.add('체크포인트 $completedCount / $totalCount');
+    } else if (quest.checkpointCount != null) {
+      parts.add('체크포인트 정보 없음');
     }
 
     return parts.join(' · ');
