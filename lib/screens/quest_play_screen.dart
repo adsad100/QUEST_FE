@@ -51,18 +51,17 @@ class _QuestPlayScreenState extends State<QuestPlayScreen> {
     _statusChanged = true;
   }
 
-  Future<bool> _onWillPop() async {
-    Navigator.pop(context, _statusChanged);
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final checkpoints = widget.questDetail.checkpoints;
     final visitedCount = _visited.where((v) => v).length;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Navigator.pop(context, _statusChanged);
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('퀘스트 진행'),
