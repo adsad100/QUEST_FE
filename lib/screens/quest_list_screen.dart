@@ -15,8 +15,6 @@ class QuestListScreen extends StatefulWidget {
 }
 
 class _QuestListScreenState extends State<QuestListScreen> {
-  static const double _filterChipWidth = 76.0;
-
   late final QuestApiService _apiService;
   late Future<List<QuestSummary>> _futureQuests;
   final QuestProgressRepository _progressRepo = QuestProgressRepository();
@@ -190,30 +188,34 @@ class _QuestListScreenState extends State<QuestListScreen> {
   }
 
   Widget _buildFilterChips() {
+    const spacing = 8.0;
+    const horizontalPadding = 16.0;
+    const chipCount = 4;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final availableWidth = screenWidth - (horizontalPadding * 2) - (spacing * (chipCount - 1));
+    final chipWidth = availableWidth / chipCount;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildFilterChip(QuestFilter.all, '전체'),
-            const SizedBox(width: 8),
-            _buildFilterChip(QuestFilter.notStarted, '미진행'),
-            const SizedBox(width: 8),
-            _buildFilterChip(QuestFilter.inProgress, '진행중'),
-            const SizedBox(width: 8),
-            _buildFilterChip(QuestFilter.completed, '완료'),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
+      child: Row(
+        children: [
+          _buildFilterChip(QuestFilter.all, '전체', chipWidth),
+          const SizedBox(width: spacing),
+          _buildFilterChip(QuestFilter.notStarted, '미진행', chipWidth),
+          const SizedBox(width: spacing),
+          _buildFilterChip(QuestFilter.inProgress, '진행중', chipWidth),
+          const SizedBox(width: spacing),
+          _buildFilterChip(QuestFilter.completed, '완료', chipWidth),
+        ],
       ),
     );
   }
 
-  ChoiceChip _buildFilterChip(QuestFilter filter, String label) {
+  ChoiceChip _buildFilterChip(QuestFilter filter, String label, double width) {
     return ChoiceChip(
       showCheckmark: false,
       label: SizedBox(
-        width: _filterChipWidth,
+        width: width,
         child: Center(child: Text(label)),
       ),
       selected: _selectedFilter == filter,
