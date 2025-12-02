@@ -21,6 +21,7 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
   int? _selectedIndex;
+  bool _statusChanged = false;
 
   @override
   void initState() {
@@ -64,144 +65,161 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('퀘스트 상세'),
-      ),
-      body: FutureBuilder<QuestDetail>(
-        future: _questFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Navigator.pop(context, _statusChanged);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('퀘스트 상세'),
+          leading: BackButton(
+            onPressed: () => Navigator.pop(context, _statusChanged),
+          ),
+        ),
+        body: FutureBuilder<QuestDetail>(
+          future: _questFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('데이터를 불러오는 중 오류가 발생했습니다.'),
-                  const SizedBox(height: 8),
-                  Text('${snapshot.error}'),
-                ],
-              ),
-            );
-          }
-
-          final quest = snapshot.data;
-          if (quest == null) {
-            return const Center(child: Text('퀘스트 정보를 찾을 수 없습니다.'));
-          }
-
-          final checkpoints = quest.checkpoints;
-          final initialTarget = _buildMarkers(checkpoints) ??
-              const LatLng(37.5665, 126.9780); // Fallback to Seoul City Hall
-
-          return Column(
-            children: [
-              SizedBox(
-                height: 240,
-                child: GoogleMap(
-                  onMapCreated: _onMapCreated,
-                  initialCameraPosition: CameraPosition(
-                    target: initialTarget,
-                    zoom: 16,
-                  ),
-                  markers: _markers,
-                  myLocationEnabled: false,
-                  myLocationButtonEnabled: false,
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('데이터를 불러오는 중 오류가 발생했습니다.'),
+                    const SizedBox(height: 8),
+                    Text('${snapshot.error}'),
+                  ],
                 ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        quest.title,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      if (quest.summary != null) ...[
+              );
+            }
+
+            final quest = snapshot.data;
+            if (quest == null) {
+              return const Center(child: Text('퀘스트 정보를 찾을 수 없습니다.'));
+            }
+
+            final checkpoints = quest.checkpoints;
+            final initialTarget = _buildMarkers(checkpoints) ??
+                const LatLng(37.5665, 126.9780); // Fallback to Seoul City Hall
+
+            return Column(
+              children: [
+                SizedBox(
+                  height: 240,
+                  child: GoogleMap(
+                    onMapCreated: _onMapCreated,
+                    initialCameraPosition: CameraPosition(
+                      target: initialTarget,
+                      zoom: 16,
+                    ),
+                    markers: _markers,
+                    myLocationEnabled: false,
+                    myLocationButtonEnabled: false,
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          quest.title,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        if (quest.summary != null) ...[
+                          const SizedBox(height: 8),
+                          Text(quest.summary!),
+                        ],
+                        if (quest.description != null) ...[
+                          const SizedBox(height: 8),
+                          Text(quest.description!),
+                        ],
+                        const SizedBox(height: 12),
+                        if (quest.estimatedDurationMin != null)
+                          Text('예상 소요 시간: ${quest.estimatedDurationMin}분'),
+                        if (quest.totalDistanceM != null)
+                          Text('총 거리: ${quest.totalDistanceM}m'),
+                        const SizedBox(height: 16),
+                        const Text(
+                          '체크포인트',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 8),
-                        Text(quest.summary!),
-                      ],
-                      if (quest.description != null) ...[
-                        const SizedBox(height: 8),
-                        Text(quest.description!),
-                      ],
-                      const SizedBox(height: 12),
-                      if (quest.estimatedDurationMin != null)
-                        Text('예상 소요 시간: ${quest.estimatedDurationMin}분'),
-                      if (quest.totalDistanceM != null)
-                        Text('총 거리: ${quest.totalDistanceM}m'),
-                      const SizedBox(height: 16),
-                      const Text(
-                        '체크포인트',
-                        style:
-                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      ...List.generate(checkpoints.length, (index) {
-                        final checkpoint = checkpoints[index];
-                        final isSelected = _selectedIndex == index;
-                        return Card(
-                          color: isSelected
-                              ? Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.1)
-                              : null,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: isSelected
-                                  ? Theme.of(context).colorScheme.primary
-                                  : null,
-                              child: Text('${checkpoint.orderIndex}'),
-                            ),
-                            title: Text(
-                              checkpoint.name,
-                              style: TextStyle(
-                                fontWeight:
-                                    isSelected ? FontWeight.bold : FontWeight.normal,
+                        ...List.generate(checkpoints.length, (index) {
+                          final checkpoint = checkpoints[index];
+                          final isSelected = _selectedIndex == index;
+                          return Card(
+                            color: isSelected
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.1)
+                                : null,
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isSelected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                                child: Text('${checkpoint.orderIndex}'),
                               ),
+                              title: Text(
+                                checkpoint.name,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              subtitle: Text(checkpoint.description ?? '설명 없음'),
+                              onTap: () {
+                                setState(() {
+                                  _selectedIndex = index;
+                                });
+                                _moveCameraTo(checkpoint);
+                              },
                             ),
-                            subtitle: Text(checkpoint.description ?? '설명 없음'),
-                            onTap: () {
-                              setState(() {
-                                _selectedIndex = index;
-                              });
-                              _moveCameraTo(checkpoint);
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => QuestPlayScreen(questDetail: quest),
-                          ),
-                        );
-                      },
-                      child: const Text('퀘스트 시작'),
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final changed = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => QuestPlayScreen(questDetail: quest),
+                            ),
+                          );
+
+                          if (changed == true) {
+                            setState(() {
+                              _statusChanged = true;
+                            });
+                          }
+                        },
+                        child: const Text('퀘스트 시작'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
