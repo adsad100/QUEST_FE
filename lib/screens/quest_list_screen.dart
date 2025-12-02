@@ -202,23 +202,25 @@ class _QuestListScreenState extends State<QuestListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Expanded(child: _buildFilterChip(QuestFilter.all, '전체')),
+          Expanded(child: _buildFilterChip(QuestFilter.all, '전체', const Color.fromARGB(255, 228, 228, 228))),
           const SizedBox(width: 8),
-          Expanded(child: _buildFilterChip(QuestFilter.notStarted, '미진행')),
+          Expanded(child: _buildFilterChip(QuestFilter.notStarted, '미진행', const Color.fromARGB(255, 228, 228, 228))),
           const SizedBox(width: 8),
-          Expanded(child: _buildFilterChip(QuestFilter.inProgress, '진행중')),
+          Expanded(child: _buildFilterChip(QuestFilter.inProgress, '진행중', _cardColorFor(QuestStatus.inProgress, context))),
           const SizedBox(width: 8),
-          Expanded(child: _buildFilterChip(QuestFilter.completed, '완료')),
+          Expanded(child: _buildFilterChip(QuestFilter.completed, '완료', _cardColorFor(QuestStatus.completed, context))),
         ],
       ),
     );
   }
 
-  ChoiceChip _buildFilterChip(QuestFilter filter, String label) {
+  ChoiceChip _buildFilterChip(QuestFilter filter, String label, Color color) {
     return ChoiceChip(
       showCheckmark: false,
+      side: const BorderSide(color: Color(0xFFCFD3DA)),
       label: Center(child: Text(label)),
       selected: _selectedFilter == filter,
+      selectedColor: color,
       onSelected: (_) {
         setState(() => _selectedFilter = filter);
       },
