@@ -155,8 +155,6 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                           const SizedBox(height: 8),
                           Text(quest.description!),
                         ],
-                        const SizedBox(height: 8),
-                        Text('체크포인트 진행: $completedCheckpoints / $totalCheckpoints'),
                         const SizedBox(height: 12),
                         if (quest.estimatedDurationMin != null)
                           Text('예상 소요 시간: ${quest.estimatedDurationMin}분'),
@@ -175,8 +173,8 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                               '$completedCheckpoints / $totalCheckpoints',
                               style: Theme.of(context)
                                   .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.grey[700]),
+                                  .bodyMedium
+                                  ?.copyWith(color: Colors.grey[900]),
                             ),
                           ],
                         ),
