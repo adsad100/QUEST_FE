@@ -59,37 +59,71 @@ class _QuestListScreenState extends State<QuestListScreen> {
             separatorBuilder: (context, index) => const Divider(height: 10),
             itemBuilder: (context, index) {
               final quest = quests[index];
-              return ListTile(
-                title: Text(quest.title),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (quest.summary != null) Text(quest.summary!),
-                    if (quest.estimatedDurationMin != null)
-                      Text('예상 소요 시간: ${quest.estimatedDurationMin}분'),
-                    if (quest.totalDistanceM != null)
-                      Text('총 거리: ${quest.totalDistanceM}m'),
-                    if (quest.checkpointCount != null)
-                      Text('체크포인트: ${quest.checkpointCount}개'),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => QuestDetailScreen(questId: quest.id),
-                    ),
-                  ).then((value){
-                    setState((){
+              final theme = Theme.of(context);
+              final metaLine = buildMetaLine(quest);
+              final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
 
+              return Card(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuestDetailScreen(questId: quest.id),
+                      ),
+                    ).then((value) {
+                      setState(() {});
                     });
-                  });
-                },
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          quest.title,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        if (hasSummary) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            quest.summary!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                        if (metaLine.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            metaLine,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               );
             },
           );
         },
       ),
     );
+  }
+
+  String buildMetaLine(QuestSummary quest) {
+    final parts = <String>[];
+    if (quest.estimatedDurationMin != null) {
+      parts.add('${quest.estimatedDurationMin}분');
+    }
+    if (quest.totalDistanceM != null) {
+      parts.add('${quest.totalDistanceM}m');
+    }
+    if (quest.checkpointCount != null) {
+      parts.add('체크포인트 ${quest.checkpointCount}개');
+    }
+
+    return parts.join(' · ');
   }
 }
