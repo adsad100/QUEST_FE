@@ -21,6 +21,7 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
   int? _selectedIndex;
+  bool _statusChanged = false;
 
   @override
   void initState() {
@@ -62,18 +63,28 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
     _mapController = controller;
   }
 
+  Future<bool> _onWillPop() async {
+    Navigator.pop(context, _statusChanged);
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('퀘스트 상세'),
-      ),
-      body: FutureBuilder<QuestDetail>(
-        future: _questFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('퀘스트 상세'),
+          leading: BackButton(
+            onPressed: () => Navigator.pop(context, _statusChanged),
+          ),
+        ),
+        body: FutureBuilder<QuestDetail>(
+          future: _questFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
           if (snapshot.hasError) {
             return Center(
@@ -186,13 +197,19 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        final changed = await Navigator.push<bool>(
                           context,
                           MaterialPageRoute(
                             builder: (_) => QuestPlayScreen(questDetail: quest),
                           ),
                         );
+
+                        if (changed == true) {
+                          setState(() {
+                            _statusChanged = true;
+                          });
+                        }
                       },
                       child: const Text('퀘스트 시작'),
                     ),

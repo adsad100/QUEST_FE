@@ -41,6 +41,16 @@ class _QuestListScreenState extends State<QuestListScreen> {
     return quests;
   }
 
+  Future<void> _reloadStatuses() async {
+    final quests = await _futureQuests;
+    final ids = quests.map((q) => q.id).toList();
+    final statuses = await _progressRepo.getStatuses(ids);
+
+    setState(() {
+      _statusMap = statuses;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,17 +101,17 @@ class _QuestListScreenState extends State<QuestListScreen> {
                       color: _cardColorFor(status, context),
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: InkWell(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          final changed = await Navigator.push<bool>(
                             context,
                             MaterialPageRoute(
                               builder: (_) => QuestDetailScreen(questId: quest.id),
                             ),
-                          ).then((value) {
-                            setState(() {
-                              _futureQuests = _loadQuests();
-                            });
-                          });
+                          );
+
+                          if (changed == true) {
+                            await _reloadStatuses();
+                          }
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(12),
