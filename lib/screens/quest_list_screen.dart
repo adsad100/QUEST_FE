@@ -56,7 +56,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
 
           return ListView.separated(
             itemCount: quests.length,
-            separatorBuilder: (context, index) => const Divider(height: 10),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final quest = quests[index];
               final theme = Theme.of(context);
