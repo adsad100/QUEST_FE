@@ -188,36 +188,26 @@ class _QuestListScreenState extends State<QuestListScreen> {
   }
 
   Widget _buildFilterChips() {
-    const spacing = 8.0;
-    const horizontalPadding = 16.0;
-    const chipsPerRow = 2;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final availableWidth =
-        screenWidth - (horizontalPadding * 2) - (spacing * (chipsPerRow - 1));
-    final chipWidth = availableWidth / chipsPerRow;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
-      child: Wrap(
-        spacing: spacing,
-        runSpacing: spacing,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
         children: [
-          _buildFilterChip(QuestFilter.all, '전체', chipWidth),
-          _buildFilterChip(QuestFilter.notStarted, '미진행', chipWidth),
-          _buildFilterChip(QuestFilter.inProgress, '진행중', chipWidth),
-          _buildFilterChip(QuestFilter.completed, '완료', chipWidth),
+          Expanded(child: _buildFilterChip(QuestFilter.all, '전체')),
+          const SizedBox(width: 8),
+          Expanded(child: _buildFilterChip(QuestFilter.notStarted, '미진행')),
+          const SizedBox(width: 8),
+          Expanded(child: _buildFilterChip(QuestFilter.inProgress, '진행중')),
+          const SizedBox(width: 8),
+          Expanded(child: _buildFilterChip(QuestFilter.completed, '완료')),
         ],
       ),
     );
   }
 
-  ChoiceChip _buildFilterChip(QuestFilter filter, String label, double width) {
+  ChoiceChip _buildFilterChip(QuestFilter filter, String label) {
     return ChoiceChip(
       showCheckmark: false,
-      label: SizedBox(
-        width: width,
-        child: Center(child: Text(label)),
-      ),
+      label: Center(child: Text(label)),
       selected: _selectedFilter == filter,
       onSelected: (_) {
         setState(() => _selectedFilter = filter);
