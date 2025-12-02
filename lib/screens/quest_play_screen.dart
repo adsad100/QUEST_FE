@@ -16,42 +16,51 @@ class QuestPlayScreen extends StatefulWidget {
 }
 
 class _QuestPlayScreenState extends State<QuestPlayScreen> {
-  late List<bool> _visited;
+  late List<bool> _checked;
   final QuestProgressRepository _progressRepo = QuestProgressRepository();
   bool _statusChanged = false;
 
   @override
   void initState() {
     super.initState();
-    _visited = List<bool>.filled(widget.questDetail.checkpoints.length, false);
-    _loadVisitedCheckpoints();
+    _checked = List<bool>.filled(widget.questDetail.checkpoints.length, false);
+    _loadCompletedCheckpoints();
   }
 
   Future<void> _toggleVisited(int index, bool? value) async {
     setState(() {
-      _visited[index] = value ?? false;
+      _checked[index] = value ?? false;
     });
 
-    await _updateStatus();
+    await _updateStatusAndCheckpoints();
   }
 
-  Future<void> _loadVisitedCheckpoints() async {
+  Future<void> _loadCompletedCheckpoints() async {
     final savedVisited =
-        await _progressRepo.getVisitedCheckpoints(widget.questDetail.id);
+        await _progressRepo.getCompletedCheckpoints(widget.questDetail.id);
 
     if (!mounted) return;
 
     setState(() {
       for (var i = 0; i < widget.questDetail.checkpoints.length; i++) {
         final checkpointId = widget.questDetail.checkpoints[i].id;
-        _visited[i] = savedVisited.contains(checkpointId);
+        _checked[i] = savedVisited.contains(checkpointId);
       }
     });
   }
 
-  Future<void> _updateStatus() async {
-    final total = _visited.length;
-    final completedCount = _visited.where((v) => v).length;
+  Future<void> _updateStatusAndCheckpoints() async {
+    final total = _checked.length;
+    final completedCount = _checked.where((v) => v).length;
+
+    final completedIds = <int>{};
+    for (int i = 0; i < _checked.length; i++) {
+      if (_checked[i]) {
+        final cpId = widget.questDetail.checkpoints[i].id;
+        completedIds.add(cpId);
+      }
+    }
+    await _progressRepo.setCompletedCheckpoints(widget.questDetail.id, completedIds);
 
     QuestStatus newStatus;
     if (completedCount == 0) {
@@ -61,26 +70,15 @@ class _QuestPlayScreenState extends State<QuestPlayScreen> {
     } else {
       newStatus = QuestStatus.inProgress;
     }
-
-    final visitedCheckpointIds = <int>[];
-    for (var i = 0; i < _visited.length; i++) {
-      if (_visited[i]) {
-        visitedCheckpointIds.add(widget.questDetail.checkpoints[i].id);
-      }
-    }
-
-    await _progressRepo.setVisitedCheckpoints(
-      widget.questDetail.id,
-      visitedCheckpointIds,
-    );
     await _progressRepo.setStatus(widget.questDetail.id, newStatus);
+
     _statusChanged = true;
   }
 
   @override
   Widget build(BuildContext context) {
     final checkpoints = widget.questDetail.checkpoints;
-    final visitedCount = _visited.where((v) => v).length;
+    final visitedCount = _checked.where((v) => v).length;
 
     return PopScope(
       canPop: false,
@@ -109,7 +107,7 @@ class _QuestPlayScreenState extends State<QuestPlayScreen> {
                   itemCount: checkpoints.length,
                   itemBuilder: (context, index) {
                     final checkpoint = checkpoints[index];
-                    final visited = _visited[index];
+                    final visited = _checked[index];
                     return Card(
                       child: CheckboxListTile(
                         value: visited,
