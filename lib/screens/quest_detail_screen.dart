@@ -163,10 +163,22 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                         if (quest.totalDistanceM != null)
                           Text('총 거리: ${quest.totalDistanceM}m'),
                         const SizedBox(height: 16),
-                        const Text(
-                          '체크포인트',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                        Row(
+                          children: [
+                            const Text(
+                              '체크포인트',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$completedCheckpoints / $totalCheckpoints',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey[700]),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         ...List.generate(checkpoints.length, (index) {
