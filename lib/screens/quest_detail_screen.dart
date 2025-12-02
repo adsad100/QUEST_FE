@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/checkpoint.dart';
 import '../models/quest_detail.dart';
 import '../services/quest_api_service.dart';
+import '../services/quest_progress_repository.dart';
 import 'quest_play_screen.dart';
 
 class QuestDetailScreen extends StatefulWidget {
@@ -22,12 +23,15 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
   Set<Marker> _markers = {};
   int? _selectedIndex;
   bool _statusChanged = false;
+  final QuestProgressRepository _progressRepo = QuestProgressRepository();
+  Set<int> _completedCheckpointIds = {};
 
   @override
   void initState() {
     super.initState();
     _apiService = QuestApiService();
     _questFuture = _apiService.fetchQuestDetail(widget.questId);
+    _loadCompletedCheckpoints();
   }
 
   @override
@@ -61,6 +65,15 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
+  }
+
+  Future<void> _loadCompletedCheckpoints() async {
+    final ids = await _progressRepo.getCompletedCheckpoints(widget.questId);
+    if (!mounted) return;
+
+    setState(() {
+      _completedCheckpointIds = ids;
+    });
   }
 
   @override
@@ -106,6 +119,8 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
             final checkpoints = quest.checkpoints;
             final initialTarget = _buildMarkers(checkpoints) ??
                 const LatLng(37.5665, 126.9780); // Fallback to Seoul City Hall
+            final totalCheckpoints = checkpoints.length;
+            final completedCheckpoints = _completedCheckpointIds.length;
 
             return Column(
               children: [
@@ -140,6 +155,8 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                           const SizedBox(height: 8),
                           Text(quest.description!),
                         ],
+                        const SizedBox(height: 8),
+                        Text('체크포인트 진행: $completedCheckpoints / $totalCheckpoints'),
                         const SizedBox(height: 12),
                         if (quest.estimatedDurationMin != null)
                           Text('예상 소요 시간: ${quest.estimatedDurationMin}분'),
@@ -155,13 +172,19 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                         ...List.generate(checkpoints.length, (index) {
                           final checkpoint = checkpoints[index];
                           final isSelected = _selectedIndex == index;
+                          final isDone =
+                              _completedCheckpointIds.contains(checkpoint.id);
+
+                          final cpColor = isDone
+                              ? const Color(0xFFE8F5E9)
+                              : Theme.of(context).cardColor;
                           return Card(
                             color: isSelected
                                 ? Theme.of(context)
                                     .colorScheme
                                     .primary
                                     .withOpacity(0.1)
-                                : null,
+                                : cpColor,
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: isSelected
@@ -209,6 +232,7 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                             setState(() {
                               _statusChanged = true;
                             });
+                            await _loadCompletedCheckpoints();
                           }
                         },
                         child: const Text('퀘스트 시작'),

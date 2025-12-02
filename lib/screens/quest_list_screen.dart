@@ -20,6 +20,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
   final QuestProgressRepository _progressRepo = QuestProgressRepository();
 
   Map<int, QuestStatus> _statusMap = {};
+  Map<int, int> _completedCountMap = {};
   QuestFilter _selectedFilter = QuestFilter.all;
 
   @override
@@ -33,9 +34,11 @@ class _QuestListScreenState extends State<QuestListScreen> {
     final quests = await _apiService.fetchQuests();
     final ids = quests.map((q) => q.id).toList();
     final statuses = await _progressRepo.getStatuses(ids);
+    final completedCounts = await _progressRepo.getCompletedCountForQuests(ids);
 
     setState(() {
       _statusMap = statuses;
+      _completedCountMap = completedCounts;
     });
 
     return quests;
@@ -45,9 +48,11 @@ class _QuestListScreenState extends State<QuestListScreen> {
     final quests = await _futureQuests;
     final ids = quests.map((q) => q.id).toList();
     final statuses = await _progressRepo.getStatuses(ids);
+    final completedCounts = await _progressRepo.getCompletedCountForQuests(ids);
 
     setState(() {
       _statusMap = statuses;
+      _completedCountMap = completedCounts;
     });
   }
 
@@ -96,6 +101,12 @@ class _QuestListScreenState extends State<QuestListScreen> {
                     final metaLine = buildMetaLine(quest);
                     final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
                     final status = _statusMap[quest.id] ?? QuestStatus.notStarted;
+                    final completedCount = _completedCountMap[quest.id] ?? 0;
+                    final totalCount = quest.checkpointCount ?? 0;
+                    final statusText = _statusLabel(status);
+                    final progressText = totalCount > 0
+                        ? '체크포인트 $completedCount / $totalCount'
+                        : '체크포인트 정보 없음';
 
                     return Card(
                       color: _cardColorFor(status, context),
@@ -138,6 +149,12 @@ class _QuestListScreenState extends State<QuestListScreen> {
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ],
+                              const SizedBox(height: 4),
+                              Text(
+                                '$statusText · $progressText',
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(color: Colors.grey[700]),
+                              ),
                             ],
                           ),
                         ),
@@ -162,6 +179,17 @@ class _QuestListScreenState extends State<QuestListScreen> {
       case QuestStatus.notStarted:
       default:
         return Theme.of(context).cardColor;
+    }
+  }
+
+  String _statusLabel(QuestStatus status) {
+    switch (status) {
+      case QuestStatus.notStarted:
+        return '미진행';
+      case QuestStatus.inProgress:
+        return '진행중';
+      case QuestStatus.completed:
+        return '완료';
     }
   }
 
