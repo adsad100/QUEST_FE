@@ -190,21 +190,21 @@ class _QuestListScreenState extends State<QuestListScreen> {
   Widget _buildFilterChips() {
     const spacing = 8.0;
     const horizontalPadding = 16.0;
-    const chipCount = 4;
+    const chipsPerRow = 2;
     final screenWidth = MediaQuery.of(context).size.width;
-    final availableWidth = screenWidth - (horizontalPadding * 2) - (spacing * (chipCount - 1));
-    final chipWidth = availableWidth / chipCount;
+    final availableWidth =
+        screenWidth - (horizontalPadding * 2) - (spacing * (chipsPerRow - 1));
+    final chipWidth = availableWidth / chipsPerRow;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
-      child: Row(
+      child: Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
         children: [
           _buildFilterChip(QuestFilter.all, '전체', chipWidth),
-          const SizedBox(width: spacing),
           _buildFilterChip(QuestFilter.notStarted, '미진행', chipWidth),
-          const SizedBox(width: spacing),
           _buildFilterChip(QuestFilter.inProgress, '진행중', chipWidth),
-          const SizedBox(width: spacing),
           _buildFilterChip(QuestFilter.completed, '완료', chipWidth),
         ],
       ),
