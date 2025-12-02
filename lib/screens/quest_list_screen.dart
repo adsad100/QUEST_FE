@@ -192,14 +192,19 @@ class _QuestListScreenState extends State<QuestListScreen> {
   Widget _buildFilterChips() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Wrap(
-        spacing: 8,
-        children: [
-          _buildFilterChip(QuestFilter.all, '전체'),
-          _buildFilterChip(QuestFilter.notStarted, '미진행'),
-          _buildFilterChip(QuestFilter.inProgress, '진행중'),
-          _buildFilterChip(QuestFilter.completed, '완료'),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildFilterChip(QuestFilter.all, '전체'),
+            const SizedBox(width: 8),
+            _buildFilterChip(QuestFilter.notStarted, '미진행'),
+            const SizedBox(width: 8),
+            _buildFilterChip(QuestFilter.inProgress, '진행중'),
+            const SizedBox(width: 8),
+            _buildFilterChip(QuestFilter.completed, '완료'),
+          ],
+        ),
       ),
     );
   }
