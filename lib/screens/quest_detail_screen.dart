@@ -179,6 +179,15 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: LinearProgressIndicator(
+                            value: completedCheckpoints / totalCheckpoints,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: completedCheckpoints / totalCheckpoints >= 0.5 ? AlwaysStoppedAnimation<Color>(Colors.green) : AlwaysStoppedAnimation<Color>(Colors.blue),
+                          )
+                        ),
+                        const SizedBox(height: 8),
                         ...List.generate(checkpoints.length, (index) {
                           final checkpoint = checkpoints[index];
                           final isSelected = _selectedIndex == index;
