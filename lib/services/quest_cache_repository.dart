@@ -31,7 +31,7 @@ class QuestCacheRepository {
   /// 퀘스트 목록을 JSON 형태로 캐시에 저장합니다.
   Future<void> saveQuestList(List<QuestSummary> quests) async {
     final prefs = await SharedPreferences.getInstance();
-    final list = quests.map((q) => q.toJson()).toList();
+    final list = quests.map(encodeJson).toList();
     final jsonString = json.encode(list);
     await prefs.setString(_keyQuests, jsonString);
     await prefs.setInt(
@@ -46,4 +46,6 @@ class QuestCacheRepository {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_keyQuestsUpdatedAt);
   }
+
+  Map<String, dynamic> encodeJson(QuestSummary quest) => quest.toJson();
 }
