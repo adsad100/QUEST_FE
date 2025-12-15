@@ -202,7 +202,7 @@ class _QuestDetailScreenState extends State<QuestDetailScreen> {
                                 ? Theme.of(context)
                                     .colorScheme
                                     .primary
-                                    .withOpacity(0.1)
+                                    .withValues(alpha: 0.1)
                                 : cpColor,
                             child: ListTile(
                               leading: CircleAvatar(

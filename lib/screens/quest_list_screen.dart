@@ -79,7 +79,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
     } catch (e) {
       setState(() {
         _isRefreshing = false;
-        _errorMessage = '네트워크를 확인하세요. 저장된 정보를 보여드리고 있어요.';
+        _errorMessage = e.toString();
       });
     }
   }
@@ -147,7 +147,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
           if (_isRefreshing && _hasCache)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.8),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
@@ -165,7 +165,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
               left: 0,
               right: 0,
               child: Material(
-                color: Colors.red.withOpacity(0.08),
+                color: Colors.red.withValues(alpha: 0.08),
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Text(
@@ -236,7 +236,7 @@ class _QuestListScreenState extends State<QuestListScreen> {
                           Text(
                             quest.summary!,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                             ),
                           ),
                         ],

@@ -26,4 +26,15 @@ class QuestSummary {
       checkpointCount: json['checkpointCount'] as int?,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'summary': summary,
+      'estimatedDurationMin': estimatedDurationMin,
+      'totalDistanceM': totalDistanceM,
+      'checkpointCount': checkpointCount,
+    };
+  }
 }
