@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/quest_status.dart';
 import '../models/quest_summary.dart';
 import '../services/quest_api_service.dart';
+import '../services/quest_cache_repository.dart';
 import '../services/quest_progress_repository.dart';
 import 'quest_detail_screen.dart';
 
@@ -15,23 +16,75 @@ class QuestListScreen extends StatefulWidget {
 }
 
 class _QuestListScreenState extends State<QuestListScreen> {
-  late final QuestApiService _apiService;
-  late Future<List<QuestSummary>> _futureQuests;
+  final QuestApiService _questApiService = QuestApiService();
+  final QuestCacheRepository _cacheRepository = QuestCacheRepository();
   final QuestProgressRepository _progressRepo = QuestProgressRepository();
 
+  List<QuestSummary> _quests = [];
   Map<int, QuestStatus> _statusMap = {};
   Map<int, int> _completedCountMap = {};
   QuestFilter _selectedFilter = QuestFilter.all;
 
+  bool _hasCache = false; // 캐시로 채워진 적이 있는지
+  bool _isRefreshing = false; // 네트워크로 최신 데이터 가져오는 중인지
+  String? _errorMessage; // 네트워크 실패 시 메시지
+
   @override
   void initState() {
     super.initState();
-    _apiService = QuestApiService();
-    _futureQuests = _loadQuests();
+    _initLoad();
   }
 
-  Future<List<QuestSummary>> _loadQuests() async {
-    final quests = await _apiService.fetchQuests();
+  Future<void> _initLoad() async {
+    // 1) 캐시 먼저 로딩
+    final cached = await _cacheRepository.loadQuestList();
+    if (cached != null && cached.isNotEmpty) {
+      setState(() {
+        _quests = cached;
+        _hasCache = true;
+      });
+      await _rebuildProgressMaps(cached);
+    }
+
+    // 2) 네트워크로 최신 데이터 갱신 시도
+    await _refreshFromNetwork();
+  }
+
+  Future<void> _refreshFromNetwork() async {
+    setState(() {
+      _isRefreshing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final fresh = await _questApiService.fetchQuests();
+
+      // 성공하면 캐시에 저장 (캐시가 없던 경우에도 저장)
+      await _cacheRepository.saveQuestList(fresh);
+
+      setState(() {
+        _quests = fresh;
+        _hasCache = true;
+        _isRefreshing = false;
+        _errorMessage = null;
+      });
+
+      // 캐시 저장이 완료되었더라도 진행 상태 계산이 실패하면
+      // 화면이 네트워크 오류로 넘어가지 않도록 별도 처리
+      try {
+        await _rebuildProgressMaps(fresh);
+      } catch (_) {
+        // 상태 계산 실패는 캐싱/목록 표시와 분리
+      }
+    } catch (e) {
+      setState(() {
+        _isRefreshing = false;
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  Future<void> _rebuildProgressMaps(List<QuestSummary> quests) async {
     final ids = quests.map((q) => q.id).toList();
     final statuses = await _progressRepo.getStatuses(ids);
     final completedCounts = await _progressRepo.getCompletedCountForQuests(ids);
@@ -40,140 +93,181 @@ class _QuestListScreenState extends State<QuestListScreen> {
       _statusMap = statuses;
       _completedCountMap = completedCounts;
     });
-
-    return quests;
   }
 
   Future<void> _reloadStatuses() async {
-    final quests = await _futureQuests;
-    final ids = quests.map((q) => q.id).toList();
-    final statuses = await _progressRepo.getStatuses(ids);
-    final completedCounts = await _progressRepo.getCompletedCountForQuests(ids);
-
-    setState(() {
-      _statusMap = statuses;
-      _completedCountMap = completedCounts;
-    });
+    if (_quests.isEmpty) return;
+    await _rebuildProgressMaps(_quests);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Widget content;
+
+    if (_quests.isEmpty && !_hasCache && _isRefreshing) {
+      // 캐시도 없고 최초 로딩 중 → 풀스크린 로딩
+      content = const Center(
+        child: CircularProgressIndicator(),
+      );
+    } else if (_quests.isEmpty && !_hasCache && _errorMessage != null) {
+      // 캐시도 없고 네트워크도 실패 → 에러 화면
+      content = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('퀘스트를 불러오지 못했어요.'),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _refreshFromNetwork,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // 캐시 또는 최신 데이터가 있는 상태 → 기존 리스트 UI
+      content = _buildQuestList(context);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('퀘스트 목록'),
       ),
-      body: FutureBuilder<List<QuestSummary>>(
-        future: _futureQuests,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('데이터를 불러오는 중 오류가 발생했습니다.'),
-                  const SizedBox(height: 8),
-                  Text('${snapshot.error}'),
-                ],
-              ),
-            );
-          }
-
-          final quests = snapshot.data;
-          if (quests == null || quests.isEmpty) {
-            return const Center(child: Text('퀘스트가 없습니다.'));
-          }
-
-          final filteredQuests = _applyFilter(quests);
-
-          return Column(
-            children: [
-              _buildFilterChips(),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: filteredQuests.length,
-                  itemBuilder: (context, index) {
-                    final quest = filteredQuests[index];
-                    final theme = Theme.of(context);
-                    final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
-                    final status = _statusMap[quest.id] ?? QuestStatus.notStarted;
-                    final completedCount = _completedCountMap[quest.id] ?? 0;
-                    final totalCount = quest.checkpointCount ?? 0;
-                    final statusText = _statusLabel(status);
-                    final metaLine = buildMetaLine(
-                      quest,
-                      completedCount,
-                      totalCount,
-                    );
-
-                    return Card(
-                      color: _cardColorFor(status, context),
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: InkWell(
-                        onTap: () async {
-                          final changed = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => QuestDetailScreen(questId: quest.id),
-                            ),
-                          );
-
-                          if (changed == true) {
-                            await _reloadStatuses();
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                quest.title,
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              if (hasSummary) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  quest.summary!,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                              if (metaLine.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        metaLine,
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ),
-                                    Text(
-                                      statusText,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+      body: Stack(
+        children: [
+          content,
+          // 1) 네트워크 갱신 중일 때 반투명 오버레이
+          if (_isRefreshing && _hasCache)
+            Positioned.fill(
+              child: Container(
+                color: Colors.white.withValues(alpha: 0.8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 12),
+                    Text('퀘스트를 불러오는 중이에요...'),
+                  ],
                 ),
               ),
-            ],
-          );
-        },
+            ),
+          // 2) 캐시가 있고, 네트워크는 실패한 상태에서 보여줄 상단 배너
+          if (_errorMessage != null && _hasCache)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                color: Colors.red.withValues(alpha: 0.08),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.red[800],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildQuestList(BuildContext context) {
+    final filteredQuests = _applyFilter(_quests);
+
+    return Column(
+      children: [
+        _buildFilterChips(),
+        Expanded(
+          child: ListView.builder(
+            itemCount: filteredQuests.length,
+            itemBuilder: (context, index) {
+              final quest = filteredQuests[index];
+              final theme = Theme.of(context);
+              final hasSummary = quest.summary != null && quest.summary!.trim().isNotEmpty;
+              final status = _statusMap[quest.id] ?? QuestStatus.notStarted;
+              final completedCount = _completedCountMap[quest.id] ?? 0;
+              final totalCount = quest.checkpointCount ?? 0;
+              final statusText = _statusLabel(status);
+              final metaLine = buildMetaLine(
+                quest,
+                completedCount,
+                totalCount,
+              );
+
+              return Card(
+                color: _cardColorFor(status, context),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: InkWell(
+                  onTap: () async {
+                    final changed = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuestDetailScreen(questId: quest.id),
+                      ),
+                    );
+
+                    if (changed == true) {
+                      await _reloadStatuses();
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          quest.title,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        if (hasSummary) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            quest.summary!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                        if (metaLine.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  metaLine,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ),
+                              Text(
+                                statusText,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
