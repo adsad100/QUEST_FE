@@ -59,9 +59,8 @@ class _QuestListScreenState extends State<QuestListScreen> {
     try {
       final fresh = await _questApiService.fetchQuests();
 
-      // 성공하면 캐시에 저장
+      // 성공하면 캐시에 저장 (캐시가 없던 경우에도 저장)
       await _cacheRepository.saveQuestList(fresh);
-      await _rebuildProgressMaps(fresh);
 
       setState(() {
         _quests = fresh;
@@ -69,6 +68,14 @@ class _QuestListScreenState extends State<QuestListScreen> {
         _isRefreshing = false;
         _errorMessage = null;
       });
+
+      // 캐시 저장이 완료되었더라도 진행 상태 계산이 실패하면
+      // 화면이 네트워크 오류로 넘어가지 않도록 별도 처리
+      try {
+        await _rebuildProgressMaps(fresh);
+      } catch (_) {
+        // 상태 계산 실패는 캐싱/목록 표시와 분리
+      }
     } catch (e) {
       setState(() {
         _isRefreshing = false;
